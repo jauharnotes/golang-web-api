@@ -2,79 +2,106 @@ package main
 
 import (
 	"fmt"
-	"net/http"
+	"log"
+	"pustaka-api/book"
+	"pustaka-api/handler"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 func main() {
-	router := gin.Default()
-
-	router.GET("/", rootHandler)
-	router.GET("/blog", blogHandler)
-	router.GET("/books/:id/:title", booksHandler)
-	router.GET("/query", queryHandler)
-	router.POST("/books", booksPostHandler)
-
-	router.Run(":5000")
-}
-
-func rootHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"name": "Jauharuddin",
-		"bio":  "sofware enginer & content creator",
-	})
-}
-
-func blogHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"title":    "Belajar Golang Web API",
-		"tanggal":  "06 Februari 2022",
-		"paragraf": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam tristique erat et neque lacinia placerat.",
-	})
-
-}
-
-func booksHandler(c *gin.Context) {
-	id := c.Param("id")
-	title := c.Param("title")
-
-	c.JSON(http.StatusOK, gin.H{"id": id, "title": title})
-}
-
-func queryHandler(c *gin.Context) {
-	title := c.Query("title")
-	terbit := c.Query("terbit")
-
-	c.JSON(http.StatusOK, gin.H{"title": title, "terbit": terbit})
-}
-
-type BookInput struct {
-	Price int    `json:"price" binding:"required,number"`
-	Title string `json:"title" binding:"required"`
-}
-
-func booksPostHandler(c *gin.Context) {
-	var bookInput BookInput
-
-	err := c.ShouldBindJSON(&bookInput)
-
-	errorMessages := []string{}
+	dsn := "root:pas@tcp(127.0.0.1:3306)/pustaka_api?charset=utf8mb4&parseTime=True&loc=Local"
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		for _, e := range err.(validator.ValidationErrors) {
-			errorMessage := fmt.Sprintf("Error on filed %s, condition: %s", e.Field(), e.ActualTag())
-			errorMessages = append(errorMessages, errorMessage)
-
-		}
-		c.JSON(http.StatusBadRequest, gin.H{
-			"errors": errorMessages,
-		})
-		return
+		log.Fatal("Db Connection Error")
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"title": bookInput.Title,
-		"price": bookInput.Price,
-	})
+	db.AutoMigrate(&book.Book{})
+	// CRUD
+
+	// Create
+
+	// book := book.Book{}
+	// book.Title = "sapies"
+	// book.Price = 80000
+	// book.Rating = 5
+	// book.Description = "ini adalah buku sejarah recomendasi yg bagus"
+
+	// err = db.Create(&book).Error
+	// if err != nil {
+	// 	fmt.Println("=======================")
+	// 	fmt.Println("Error creating book record")
+	// 	fmt.Println("=======================")
+	// }
+
+	// =====
+	// Read
+	// =====
+	// var books []book.Book
+
+	// err = db.Debug().Where("rating", 5).Find(&books).Error
+	// if err != nil {
+	// 	fmt.Println("=======================")
+	// 	fmt.Println("Error finding book record")
+	// 	fmt.Println("=======================")
+	// }
+
+	// for _, b := range books {
+	// 	fmt.Println("Title : ", b.Title)
+	// 	fmt.Printf("Title object %v ", b)
+	// }
+
+	// =====
+	// Update
+	// =====
+	// var book book.Book
+
+	// err = db.Debug().Where("id = ?", 1).First(&book).Error
+	// if err != nil {
+	// 	fmt.Println("=======================")
+	// 	fmt.Println("Error finding book record")
+	// 	fmt.Println("=======================")
+	// }
+
+	// book.Title = "Tipping Point (Revised edition)"
+	// err = db.Save(&book).Error
+	// if err != nil {
+	// 	fmt.Println("=======================")
+	// 	fmt.Println("Error updating book record")
+	// 	fmt.Println("=======================")
+	// }
+
+	// =======
+	// Delete
+	// =======
+	var book book.Book
+
+	err = db.Debug().Last(&book).Error
+	if err != nil {
+		fmt.Println("=======================")
+		fmt.Println("Error finding book record")
+		fmt.Println("=======================")
+	}
+
+	book.Title = "Tipping Point (Revised edition)"
+	err = db.Delete(&book).Error
+	if err != nil {
+		fmt.Println("=======================")
+		fmt.Println("Error deleting book record")
+		fmt.Println("=======================")
+	}
+
+	router := gin.Default()
+
+	v1 := router.Group("/v1")
+
+	v1.GET("/", handler.RootHandler)
+	v1.GET("/blog", handler.BlogHandler)
+	v1.GET("/books/:id/:title", handler.BooksHandler)
+	v1.GET("/query", handler.QueryHandler)
+	v1.POST("/books", handler.BooksPostHandler)
+
+	router.Run(":5000")
 }
